@@ -27,21 +27,84 @@ my-plugin/
 
 ## 快速开始
 
-### 1. 初始化项目
+### 1. 创建项目目录结构
 
 ```bash
-# 创建目录
+# 创建项目目录
 mkdir my-plugin && cd my-plugin
 
-# 初始化 package.json
-npm init -y
-
-# 安装依赖
-npm install vue@^3.2.31 @mastergo/plugin-typings@^2.2.0
-npm install -D vite@^2.8.6 @vitejs/plugin-vue@^2.2.4 vite-plugin-singlefile@^0.7.1 cross-env@^7.0.3
+# 创建目录结构
+mkdir -p lib ui messages dist
 ```
 
-### 2. 核心配置文件
+### 2. 初始化 package.json
+
+```bash
+npm init -y
+```
+
+**package.json** - 项目依赖配置：
+```json
+{
+  "name": "my-mastergo-plugin",
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "npm run dev:ui & npm run dev:main",
+    "dev:ui": "cross-env TARGET=ui NODE_ENV=development vite build --mode development -w",
+    "dev:main": "cross-env TARGET=main NODE_ENV=development vite build --mode development -w",
+    "build": "npm run build:ui && npm run build:main",
+    "build:ui": "cross-env TARGET=ui vite build",
+    "build:main": "cross-env TARGET=main vite build"
+  },
+  "dependencies": {
+    "vue": "^3.2.31",
+    "@mastergo/plugin-typings": "^2.2.0"
+  },
+  "devDependencies": {
+    "vite": "^2.8.6",
+    "@vitejs/plugin-vue": "^2.2.4",
+    "vite-plugin-singlefile": "^0.7.1",
+    "cross-env": "^7.0.3",
+    "typescript": "^4.6.3"
+  }
+}
+```
+
+### 3. 安装依赖
+
+```bash
+npm install
+```
+
+### 4. 创建核心配置文件
+
+**tsconfig.json** - TypeScript 配置：
+```json
+{
+  "compilerOptions": {
+    "target": "ESNext",
+    "module": "ESNext",
+    "moduleResolution": "node",
+    "strict": true,
+    "jsx": "preserve",
+    "sourceMap": true,
+    "resolveJsonModule": true,
+    "isolatedModules": true,
+    "esModuleInterop": true,
+    "lib": ["ESNext", "DOM"],
+    "skipLibCheck": true,
+    "noEmit": true,
+    "baseUrl": ".",
+    "paths": {
+      "@lib/*": ["lib/*"],
+      "@ui/*": ["ui/*"],
+      "@messages/*": ["messages/*"]
+    }
+  },
+  "include": ["lib/**/*.ts", "ui/**/*.ts", "ui/**/*.vue", "messages/**/*.ts"]
+}
+```
 
 **manifest.json** - 插件入口配置：
 ```json
@@ -55,6 +118,8 @@ npm install -D vite@^2.8.6 @vitejs/plugin-vue@^2.2.4 vite-plugin-singlefile@^0.7
   "permissions": ["currentuser"]
 }
 ```
+
+### 2. 核心配置文件
 
 **vite.config.ts** - 双目标构建（UI + Main）：
 ```typescript
@@ -98,21 +163,7 @@ export default defineConfig(() => {
 })
 ```
 
-**package.json scripts**：
-```json
-{
-  "scripts": {
-    "dev": "npm run dev:ui & npm run dev:main",
-    "dev:ui": "cross-env TARGET=ui NODE_ENV=development vite build --mode development -w",
-    "dev:main": "cross-env TARGET=main NODE_ENV=development vite build --mode development -w",
-    "build": "npm run build:ui && npm run build:main",
-    "build:ui": "cross-env TARGET=ui vite build",
-    "build:main": "cross-env TARGET=main vite build"
-  }
-}
-```
-
-### 3. 消息通信架构
+### 5. 创建消息通信文件
 
 **messages/sender.ts** - 定义消息类型：
 ```typescript
@@ -150,7 +201,9 @@ export const sendMsgToPlugin = (data: any) => {
 }
 ```
 
-### 4. 主线程代码模板
+### 6. 创建主线程代码
+
+创建 `lib/main.ts` 文件：
 
 **lib/main.ts**：
 ```typescript
@@ -182,7 +235,17 @@ mg.ui.onmessage = (msg) => {
 }
 ```
 
-### 5. UI代码模板
+### 7. 创建 UI 代码
+
+创建 `ui/ui.ts` 入口文件：
+```typescript
+import { createApp } from 'vue'
+import App from './App.vue'
+
+createApp(App).mount('#app')
+```
+
+创建 `ui/App.vue` 主组件：
 
 **ui/App.vue**：
 ```vue
@@ -219,6 +282,46 @@ onMounted(() => {
   sendMsgToPlugin({ type: UIMessage.LOAD_STYLES })
 })
 </script>
+```
+
+### 8. 创建 index.html
+
+在项目根目录创建 `index.html`：
+```html
+<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>MasterGo Plugin</title>
+  </head>
+  <body>
+    <div id="app"></div>
+    <script type="module" src="/ui/ui.ts"></script>
+  </body>
+</html>
+```
+
+### 9. 项目文件结构汇总
+
+创建完成后，项目结构如下：
+```
+my-plugin/
+├── manifest.json          # 插件配置
+├── package.json           # 依赖配置
+├── vite.config.ts         # 构建配置
+├── tsconfig.json          # TypeScript配置
+├── index.html             # UI入口HTML
+├── lib/
+│   └── main.ts            # 主线程代码（沙箱中运行）
+├── ui/
+│   ├── App.vue            # UI主组件
+│   └── ui.ts              # UI入口
+├── messages/
+│   └── sender.ts          # 消息类型定义
+└── dist/                  # 构建输出（自动生成）
+    ├── index.html         # UI页面
+    └── main.js            # 主线程脚本
 ```
 
 ## 常用API
